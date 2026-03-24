@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "Volunteer": {
+      "title": "Volunteer",
+      "description": "A volunteer registration submission",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique ID of the user submitting the form (anonymous or logged in)"
+        },
+        "eventId": {
+          "type": "string",
+          "description": "The ID of the event the user is volunteering for, or 'general'"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the volunteer"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the volunteer"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the volunteer"
+        },
+        "age": {
+          "type": "number",
+          "description": "Age of the volunteer"
+        },
+        "education": {
+          "type": "string",
+          "description": "University / Faculty / Group or current education status"
+        },
+        "languages": {
+          "type": "object",
+          "properties": {
+            "russian": { "type": "string", "enum": ["none", "basic", "intermediate", "fluent", "native"] },
+            "english": { "type": "string", "enum": ["none", "basic", "intermediate", "fluent", "native"] },
+            "azerbaijani": { "type": "string", "enum": ["none", "basic", "intermediate", "fluent", "native"] }
+          },
+          "required": ["russian", "english", "azerbaijani"]
+        },
+        "experience": {
+          "type": "string",
+          "description": "Previous experience of the volunteer"
+        },
+        "photoUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the uploaded photo"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the registration was submitted"
+        }
+      },
+      "required": ["uid", "eventId", "name", "email", "phone", "age", "education", "languages", "experience", "createdAt"]
+    },
+    "VolunteerEvent": {
+      "title": "VolunteerEvent",
+      "description": "An event that users can volunteer for.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the event."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the event."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was created."
+        }
+      },
+      "required": ["name", "date", "createdAt"]
+    },
+    "VolunteerFormConfig": {
+      "title": "VolunteerFormConfig",
+      "description": "Configuration for the embedded Google Form",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL of the embedded Google Form"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the form section"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the form section"
+        }
+      },
+      "required": ["url", "title", "description"]
+    }
+  },
+  "firestore": {
+    "/settings/volunteerForm": {
+      "schema": {
+        "$ref": "#/entities/VolunteerFormConfig"
+      },
+      "description": "Configuration for the embedded Google Form"
+    },
+    "/volunteers/{volunteerId}": {
+      "schema": {
+        "$ref": "#/entities/Volunteer"
+      },
+      "description": "Collection of volunteer registrations"
+    },
+    "/volunteerEvents/{eventId}": {
+      "schema": {
+        "$ref": "#/entities/VolunteerEvent"
+      },
+      "description": "Collection of volunteer events"
+    }
+  }
+}

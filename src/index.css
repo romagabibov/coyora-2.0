@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-head: 'Syne', sans-serif;
+  --color-accent: #fe0000;
+  --color-bg: #050505;
+}
+
+:root {
+  --color-bg: #050505;
+  --color-text: #ffffff;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-muted: #6b7280;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-noise: 0.03;
+  --color-thumb: #333;
+  --color-track: #020202;
+}
+
+:root.light {
+  --color-bg: #f5f5f5;
+  --color-text: #050505;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-muted: #6b7280;
+  --color-surface: rgba(0, 0, 0, 0.05);
+  --color-noise: 0.06;
+  --color-thumb: #ccc;
+  --color-track: #e5e5e5;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  overflow-x: hidden;
+  cursor: default;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hide default cursor on desktop for custom cursor */
+@media (pointer: fine) {
+  body {
+    cursor: none;
+  }
+  a, button, [role="button"] {
+    cursor: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--color-track); }
+::-webkit-scrollbar-thumb { background: var(--color-thumb); }
+::-webkit-scrollbar-thumb:hover { background: #fe0000; }
+
+/* Noise Overlay */
+.bg-noise {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+  opacity: var(--color-noise);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Marquee */
+.marquee-container {
+  display: flex;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+.marquee-content {
+  display: flex;
+  animation: marquee 15s linear infinite;
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Image defaults to prevent broken loads */
+img {
+  background-color: #111;
+  color: transparent;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

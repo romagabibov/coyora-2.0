@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: volunteers
+    // Document ID: auto-generated
+    // Fields:
+    //   - uid: string (required) - ID of the submitter
+    //   - eventId: string (required, < 100 chars) - ID of the event
+    //   - name: string (required, < 100 chars) - Full name
+    //   - email: string (required, valid email) - Email address
+    //   - phone: string (required, < 20 chars) - Phone number
+    //   - age: number (required, > 0, < 120) - Age
+    //   - languages: map (required) - Language skills
+    //   - experience: string (required, < 5000 chars) - Experience description
+    //   - photoUrl: string (optional, valid URL) - URL to uploaded photo
+    //   - createdAt: timestamp (required) - Submission time
+    //
+    // ===============================================================
+
+    // Collection: volunteerEvents
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, < 100 chars) - Name of the event
+    //   - date: string (required, < 50 chars) - Date of the event
+    //   - description: string (optional, < 1000 chars) - Description of the event
+    //   - createdAt: timestamp (required) - Creation timestamp
+    //
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+    
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+    
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == "vnsbek@gmail.com" && request.auth.token.email_verified == true;
+    }
+
+    function isViewer() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/viewers/$(request.auth.token.email));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidVolunteer(data) {
+      let allowedFields = ['uid', 'eventId', 'name', 'email', 'phone', 'age', 'education', 'languages', 'experience', 'photoUrl', 'createdAt'];
+      
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['uid', 'eventId', 'name', 'email', 'phone', 'age', 'education', 'languages', 'experience', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+             data.eventId is string && data.eventId.size() > 0 && data.eventId.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 30 &&
+             data.age is number && data.age >= 14 && data.age <= 120 &&
+             data.education is string && data.education.size() <= 200 &&
+             data.languages is map &&
+             data.languages.keys().hasOnly(['russian', 'english', 'azerbaijani']) &&
+             data.languages.russian in ['none', 'basic', 'intermediate', 'fluent', 'native'] &&
+             data.languages.english in ['none', 'basic', 'intermediate', 'fluent', 'native'] &&
+             data.languages.azerbaijani in ['none', 'basic', 'intermediate', 'fluent', 'native'] &&
+             data.experience is string && data.experience.size() <= 5000 &&
+             (!('photoUrl' in data) || isValidUrl(data.photoUrl)) &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    function isValidVolunteerEvent(data) {
+      let allowedFields = ['name', 'date', 'description', 'formUrl', 'createdAt'];
+      
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['name', 'date', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.date is string && data.date.size() >= 0 && data.date.size() < 50 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 1000)) &&
+             (!('formUrl' in data) || isValidUrl(data.formUrl)) &&
+             data.createdAt is timestamp;
+    }
+
+    match /volunteers/{volunteerId} {
+      // Anyone can create a volunteer submission if they are authenticated (even anonymously)
+      allow create: if isAuthenticated() && 
+                       isValidVolunteer(request.resource.data) && 
+                       uidUnchanged();
+                       
+      // Only admins and authorized viewers can read all submissions
+      // The user who submitted can read their own submission
+      allow read: if isAdmin() || isViewer() || isDocOwner();
+      
+      // Only admins can update or delete submissions
+      allow update: if isAdmin() && isValidVolunteer(request.resource.data) && uidNotModified();
+      allow delete: if isAdmin();
+    }
+    match /volunteerEvents/{eventId} {
+      // Anyone can read volunteer events
+      allow read: if true;
+      // Only admin can create, update, delete
+      allow create: if isAdmin() && isValidVolunteerEvent(request.resource.data);
+      allow update: if isAdmin() && isValidVolunteerEvent(request.resource.data) &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    function isValidOpportunity(data) {
+      let allowedFields = ['type', 'title', 'description', 'formUrl', 'createdAt'];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['type', 'title', 'formUrl', 'createdAt']) &&
+             data.type in ['vacancy', 'internship'] &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             isValidUrl(data.formUrl) &&
+             data.createdAt is timestamp;
+    }
+
+    match /opportunities/{opportunityId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidOpportunity(request.resource.data);
+      allow update: if isAdmin() && isValidOpportunity(request.resource.data) &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    match /viewers/{email} {
+      // Viewers can read the viewers list (to verify their own access)
+      allow read: if isAdmin() || isViewer();
+      // Only admins can add/remove viewers
+      allow write: if isAdmin();
+    }
+    match /settings/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
